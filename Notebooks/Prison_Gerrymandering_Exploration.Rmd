@@ -1,0 +1,116 @@
+---
+title: "Investigating Prison Gerrymandering in Tennessee"
+output: html_notebook
+---
+
+```{r}
+library(tidygeocoder)
+library(tidyverse)
+library(sf)
+library(leaflet)
+```
+
+```{r}
+# Most prison addresses and capacities came from tn.gov: https://www.tn.gov/correction/state-prisons/state-prison-list.html
+# Some prisons did not have their capacity listed on tn.gov. These came from WikiPedia:
+#   https://en.wikipedia.org/wiki/Trousdale_Turner_Correctional_Center
+#   https://en.wikipedia.org/wiki/South_Central_Correctional_Facility
+#   https://en.wikipedia.org/wiki/Whiteville_Correctional_Facility
+
+prison_info <- tibble::tribble(
+~name,                  ~address,                    ~capacity,
+'Bledsoe County Correctional Complex',          '1045 Horsehead Road, Pikeville, TN 37367-7432',   2265,
+'Debra K. Johnson Rehabilitation Center',       '3881 Stewarts Lane, Nashville, TN 37243-0468',    817,
+'Hardeman County Correctional Facility',         '2520 Union Springs Road, Whiteville, TN 38075-7548',   1976,
+'Lois M. DeBerry Special Needs Facility',        '7575 Cockrill Bend Boulevard, Nashville, TN 37209-1057',   854,
+'Mark Luttrell Transition Center',            '6000 State Road, Memphis, TN 38134-7628',     288,
+'Morgan County Correctional Complex',           '541 Wayne Cotton Morgan Drive, Wartburg, TN 37887-3249',   2128,
+'Northeast Correctional Complex',               '5249 Highway 67 West, Mountain City, TN 37683-5000',  1701,
+'Northwest Correctional Complex',               '960 State Route 212, Tiptonville, TN 38079-4037', 1776,
+'Riverbend Maximum Security Institution',       '7475 Cockrill Bend Boulevard, Nashville, TN 37243-0471', 786,
+'South Central Correctional Facility',         '555 Forest Avenue, Clifton, TN 38425-0279', 1676,
+'Trousdale Turner Correctional Center',        '140 Macon Way, Hartsville, TN 37074-2080',    2672,
+'Turney Center Industrial Complex',             '1499 R.W. Moore Memorial Highway, Only, TN 37140-4050',  1574,
+'Whiteville Correctional Facility',            '1440 Union Springs Road, Whiteville, TN 38075-7526',   1536,
+'West Tennessee State Penitentiary',           '480 Green Chapel Road, Henning, TN 38041-1150',   980
+)
+
+# Geocode the prison addresses
+prison_info <- prison_info |>
+  # First geocode by address
+  geocode(address, method = 'osm', lat = latitude , long = longitude) |>
+  # Then geocode by prison name
+  geocode(name, method = 'osm', lat = latitude_name , long = longitude_name) |>
+  # Coalesce latitude and longitude to fill in missing coordinates when searching by address
+  mutate(
+    latitude = coalesce(latitude, latitude_name),
+   longitude = coalesce(longitude, longitude_name)
+   ) |>
+  # Drop unneeded coordinate columns
+  dplyr::select(-latitude_name,-longitude_name)
+```
+Reading in TN state house and senate district boundaries:
+```{r}
+state_house <- st_read('../Data/tn_sldl_adopted_2022/house_districts.shp')
+state_senate <- st_read('../Data/tn_sldu_adopted_2022/finalsenatedistricts1-17-22.shp')
+```
+```{r}
+state_house |> 
+  ggplot() +
+  geom_sf()
+```
+
+```{r}
+state_senate |> 
+  ggplot() +
+  geom_sf()
+```
+
+```{r}
+# Adding spatial geometry to prison_info tibble
+prison_info <- st_as_sf(
+  prison_info,
+  coords = c('longitude', 'latitude'),
+  crs = st_crs(state_house), ## use the same crs as the state house shape file
+  remove = FALSE
+)
+```
+
+
+Now we will perform a spatial join to determine the district in which each prison is located
+```{r}
+# Fix issue with duplicate vertices
+state_house <- sf::st_make_valid(state_house)
+state_senate <- sf::st_make_valid(state_senate)
+
+# Spatial join to determine the house/senate district associated with each prison
+prisons_sldl <- 
+  st_join(state_house, prison_info, join = st_contains)
+
+prisons_sldu <- 
+  st_join(state_senate, prison_info, join = st_contains)
+```
+
+```{r}
+prisons_sldl |>
+  st_drop_geometry()
+```
+```{r}
+prisons_sldu |>
+  st_drop_geometry()
+```
+
+```{r}
+state_house |> 
+  ggplot() +
+  geom_sf() +
+  geom_point(data = prisons_sldl, aes(x = longitude, y = latitude), size = 0.5) +
+  labs(title= 'TN Prisons by State House District') 
+```
+```{r}
+state_senate |> 
+  ggplot() +
+  geom_sf() +
+  geom_point(data = prisons_sldu, aes(x = longitude, y = latitude), size = 0.5) +
+  labs(title= 'TN Prisons by State Senate District') 
+```
