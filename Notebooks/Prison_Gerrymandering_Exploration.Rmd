@@ -9,7 +9,9 @@ library(tidyverse)
 library(sf)
 library(leaflet)
 ```
+# Data gathering:
 
+Collecting prison data:
 ```{r}
 # Most prison addresses and capacities came from tn.gov: https://www.tn.gov/correction/state-prisons/state-prison-list.html
 # Some prisons did not have their capacity listed on tn.gov. These came from WikiPedia:
@@ -49,21 +51,75 @@ prison_info <- prison_info |>
   # Drop unneeded coordinate columns
   dplyr::select(-latitude_name,-longitude_name)
 ```
-Reading in TN state house and senate district boundaries:
+
+Reading in population data:
 ```{r}
-state_house <- st_read('../Data/tn_sldl_adopted_2022/house_districts.shp')
-state_senate <- st_read('../Data/tn_sldu_adopted_2022/finalsenatedistricts1-17-22.shp')
+sldl_pop <- read_csv('../Data/tn_cvap_2023_sldl/tn_cvap_2023_sldl.csv') |>
+  select(SLDL, CVAP_TOT23) |>
+  rename(cvap_total=CVAP_TOT23)
+
+head(sldl_pop)
 ```
 ```{r}
-state_house |> 
-  ggplot() +
-  geom_sf()
+sldu_pop <- read_csv('../Data/tn_cvap_2023_sldu/tn_cvap_2023_sldu.csv') |>
+  select(SLDU, CVAP_TOT23) |>
+  rename(cvap_total=CVAP_TOT23)
+
+head(sldu_pop)
+```
+Reading in voter registration and demographic data, using census block mapping data to aggregate by district:
+```{r}
+TN_voter_data <- read_csv('../Data/TN_l2_2024_gen_stats_2020block/TN_l2_2024_gen_stats_2020block.csv') |>
+  rename(GEOID20=geoid20) |>
+  select(-starts_with(c('voted', 'pct_voted', 'reg_self_afam')))  # drop voter turnout data, not needed
+
+# adding census block mapping data for senate districts
+TN_voter_data <- full_join(TN_voter_data, read_csv('../Data/block-assignments_statesenate.csv'), by = 'GEOID20') |> 
+  rename(SLDU=District) |>
+  relocate(SLDU)
+
+# adding census block mapping data for house districts
+TN_voter_data <- full_join(TN_voter_data, read_csv('../Data/block-assignments_statehouse.csv'), by = 'GEOID20') |>
+   rename(SLDL=District) |>
+   relocate(SLDL)
+
+# aggregating demographic data by house district
+sldl_demogr <- TN_voter_data |>
+  group_by(SLDL) |>
+  summarize(across(reg_all:reg_unk, sum)) |>
+  mutate(
+    across(
+      .cols = reg_gender_male:reg_unk, # for each column that starts with 'reg' (except for reg_all),
+      .fns = ~ .x / reg_all * 100,   # divide by reg_all and multiply by 100 to get a percentage
+      .names = 'pct_{.col}'   # and update the naming convention for the new columns
+    )
+  ) |>
+  select(-starts_with('reg_')) |> # drop the columns that were used in the mutate
+  ungroup()
+  
+colnames(sldl_demogr) <- str_replace(colnames(sldl_demogr), 'reg_', '') # remove 'reg' from column names since it's been replaced with 'pct'
+
+# aggregating demographic data by senate district
+sldu_demogr <- TN_voter_data |>
+  group_by(SLDU) |>
+  summarize(across(reg_all:reg_unk, sum)) |>
+  mutate(
+    across(
+      .cols = reg_gender_male:reg_unk, # for each column that starts with 'reg' (except for reg_all),
+      .fns = ~ .x / reg_all * 100,   # divide by reg_all and multiply by 100 to get a percentage
+      .names = 'pct_{.col}'   # and update the naming convention for the new columns
+    )
+  ) |>
+  select(-starts_with('reg_')) |> # drop the columns that were used in the mutate 
+  ungroup()
+  
+colnames(sldu_demogr) <- str_replace(colnames(sldu_demogr), 'reg_', '') # remove 'reg' from column names since it's been replaced with 'pct'
 ```
 
+Reading in TN state house and senate district boundaries:
 ```{r}
-state_senate |> 
-  ggplot() +
-  geom_sf()
+TN_house_bounds <- st_read('../Data/tn_sldl_adopted_2022/house_districts.shp')
+TN_senate_bounds <- st_read('../Data/tn_sldu_adopted_2022/finalsenatedistricts1-17-22.shp')
 ```
 
 ```{r}
@@ -76,41 +132,144 @@ prison_info <- st_as_sf(
 )
 ```
 
-
 Now we will perform a spatial join to determine the district in which each prison is located
 ```{r}
 # Fix issue with duplicate vertices
-state_house <- sf::st_make_valid(state_house)
-state_senate <- sf::st_make_valid(state_senate)
+TN_house_bounds <- sf::st_make_valid(TN_house_bounds)
+TN_senate_bounds <- sf::st_make_valid(TN_senate_bounds)
 
 # Spatial join to determine the house/senate district associated with each prison
 prisons_sldl <- 
-  st_join(state_house, prison_info, join = st_contains)
+  st_join(TN_house_bounds, prison_info, join = st_contains)
 
 prisons_sldu <- 
-  st_join(state_senate, prison_info, join = st_contains)
+  st_join(TN_senate_bounds, prison_info, join = st_contains)
+```
+
+Adding prison populations and total populations to the SLDL and SLDU district demographic tibbles:
+```{r}
+sldu_demogr <- sldu_demogr |>
+                full_join((
+                  prisons_sldu |> 
+                    st_drop_geometry() |> 
+                    group_by(DISTRICT) |> 
+                    summarize(prison_pop = sum(capacity, na.rm=TRUE)) |>
+                    rename(SLDU=DISTRICT)
+                  ), 
+                  by = 'SLDU') |>
+                full_join(sldu_pop, by = 'SLDU')
+
+sldl_demogr <- sldl_demogr |>
+                full_join((
+                  prisons_sldl |> 
+                    st_drop_geometry() |> 
+                    group_by(DISTRICT) |> 
+                    summarize(prison_pop = sum(capacity, na.rm=TRUE)) |>
+                    rename(SLDL=DISTRICT)
+                  ), 
+                  by = 'SLDL') |>
+                full_join(sldl_pop, by = 'SLDL')
+```
+
+Adding columns for percent incarcerated, voting strength, and the presence of 1 or more prisons:
+```{r}
+sldl_demogr <- sldl_demogr |>
+  mutate(pct_incarc = prison_pop / cvap_total * 100,
+         vote_strength = cvap_total / (cvap_total - prison_pop),
+         prisons_present = if_else(prison_pop > 0, TRUE, FALSE)) |>
+  relocate(c(prison_pop, cvap_total, pct_incarc, vote_strength, prisons_present), .after = SLDL)
+
+sldu_demogr <- sldu_demogr |>
+  mutate(pct_incarc = prison_pop / cvap_total * 100,
+         vote_strength = cvap_total / (cvap_total - prison_pop),
+         prisons_present = if_else(prison_pop > 0, TRUE, FALSE)) |>
+  relocate(c(prison_pop, cvap_total, pct_incarc, vote_strength, prisons_present), .after = SLDU)
 ```
 
 ```{r}
-prisons_sldl |>
-  st_drop_geometry()
+sldl_demogr
 ```
 ```{r}
-prisons_sldu |>
-  st_drop_geometry()
+sldu_demogr
+```
+# Statistical analysis:
+
+## For state house districts: 
+
+How much of an increase in voting strength can we expect based on the presence of 1 or more prisons in a district? 
+```{r}
+# creating a linear regression model with x = presence of 1 or more prisons, and y = vote strength
+lm_prisons_present = lm(vote_strength ~ prisons_present, data = sldl_demogr)
+summary(lm_prisons_present)
+```
+On average, a state house district containing one or more prisons will have a vote strength that is 0.0379 greater than a district that lacks prisons. This result is statistically significant.
+
+How strongly does a district's partisan makeup correlate with its voting strength?
+```{r}
+# creating a linear regression model with x = percent of voting age population registered as Democrat, and y = vote strength
+sldl_dem_votestrength = lm(vote_strength ~ pct_party_democratic, data = sldl_demogr)
+summary(sldl_dem_votestrength)
+```
+There is not a statistically significant relationship between partisan makeup and vote strength.
+
+## For state senate districts:
+
+How much of an increase in voting strength can we expect based on the presence of 1 or more prisons in a district? 
+```{r}
+# creating a linear regression model with x = presence of 1 or more prisons, and y = vote strength
+sldu_prisons_present = lm(vote_strength ~ prisons_present, data = sldu_demogr)
+summary(sldu_prisons_present)
+```
+On average, a state senate district containing one or more prisons will have a vote strength that is 0.013 greater than a district that lacks prisons. This result is statistically significant.
+
+How strongly does a district's partisan makeup correlate with its voting strength?
+```{r}
+# creating a linear regression model with x = percent of voting age population registered as Democrat, and y = vote strength
+sldu_dem_votestrength = lm(vote_strength ~ pct_party_democratic, data = sldu_demogr)
+summary(sldu_dem_votestrength)
+```
+There is not a statistically significant relationship between partisan makeup and vote strength.
+
+# Preliminary visualizations:
+```{r}
+leaflet() |>
+addTiles() |> 
+addPolygons(
+    data = TN_house_bounds,
+    color = "#444444",
+    weight = 1,
+    fillOpacity = 0.5,
+    fillColor = "#fec44f",
+    label = ~LONGNAME
+  ) |>
+  addMarkers(
+    data = prisons_sldl,
+    lng = ~longitude,
+    lat = ~latitude,
+    popup = ~as.character(name), 
+    label = ~as.character(name)
+  )
 ```
 
+
 ```{r}
-state_house |> 
-  ggplot() +
-  geom_sf() +
-  geom_point(data = prisons_sldl, aes(x = longitude, y = latitude), size = 0.5) +
-  labs(title= 'TN Prisons by State House District') 
+leaflet() |>
+addTiles() |> 
+addPolygons(
+    data = TN_senate_bounds,
+    color = "#444444",
+    weight = 1,
+    fillOpacity = 0.5,
+    fillColor = "#fec44f",
+    label = ~LONGNAME
+  ) |>
+  addMarkers(
+    data = prisons_sldu,
+    lng = ~longitude,
+    lat = ~latitude,
+    popup = ~as.character(name), 
+    label = ~as.character(name)
+  )
 ```
-```{r}
-state_senate |> 
-  ggplot() +
-  geom_sf() +
-  geom_point(data = prisons_sldu, aes(x = longitude, y = latitude), size = 0.5) +
-  labs(title= 'TN Prisons by State Senate District') 
-```
+
+
