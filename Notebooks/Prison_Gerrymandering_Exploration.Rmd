@@ -55,23 +55,26 @@ prison_info <- prison_info |>
 Reading in population data:
 ```{r}
 sldl_pop <- read_csv('../Data/tn_cvap_2023_sldl/tn_cvap_2023_sldl.csv') |>
-  select(SLDL, CVAP_TOT23) |>
-  rename(cvap_total=CVAP_TOT23)
+  select(SLDL, CVAP_TOT23, ALL_TOT23) |>
+  rename(cvap_total = CVAP_TOT23,
+          total_pop = ALL_TOT23) 
 
 head(sldl_pop)
 ```
 ```{r}
 sldu_pop <- read_csv('../Data/tn_cvap_2023_sldu/tn_cvap_2023_sldu.csv') |>
-  select(SLDU, CVAP_TOT23) |>
-  rename(cvap_total=CVAP_TOT23)
+  select(SLDU, CVAP_TOT23, ALL_TOT23) |>
+  rename(cvap_total=CVAP_TOT23,
+         total_pop = ALL_TOT23)
 
 head(sldu_pop)
 ```
 Reading in voter registration and demographic data, using census block mapping data to aggregate by district:
 ```{r}
 TN_voter_data <- read_csv('../Data/TN_l2_2024_gen_stats_2020block/TN_l2_2024_gen_stats_2020block.csv') |>
-  rename(GEOID20=geoid20) |>
-  select(-starts_with(c('voted', 'pct_voted', 'reg_self_afam')))  # drop voter turnout data, not needed
+  rename(GEOID20=geoid20,
+         voter_turnout=pct_voted_all) |>
+  select(-starts_with(c('voted', 'pct_voted', 'reg_self_afam')))  # drop specific voter turnout percentages except for overall turnout
 
 # adding census block mapping data for senate districts
 TN_voter_data <- full_join(TN_voter_data, read_csv('../Data/block-assignments_statesenate.csv'), by = 'GEOID20') |> 
@@ -82,11 +85,13 @@ TN_voter_data <- full_join(TN_voter_data, read_csv('../Data/block-assignments_st
 TN_voter_data <- full_join(TN_voter_data, read_csv('../Data/block-assignments_statehouse.csv'), by = 'GEOID20') |>
    rename(SLDL=District) |>
    relocate(SLDL)
+```
 
+```{r}
 # aggregating demographic data by house district
 sldl_demogr <- TN_voter_data |>
   group_by(SLDL) |>
-  summarize(across(reg_all:reg_unk, sum)) |>
+  summarize(voter_turnout = mean(voter_turnout, na.rm=TRUE), across(reg_all:reg_unk, sum)) |>
   mutate(
     across(
       .cols = reg_gender_male:reg_unk, # for each column that starts with 'reg' (except for reg_all),
@@ -102,7 +107,7 @@ colnames(sldl_demogr) <- str_replace(colnames(sldl_demogr), 'reg_', '') # remove
 # aggregating demographic data by senate district
 sldu_demogr <- TN_voter_data |>
   group_by(SLDU) |>
-  summarize(across(reg_all:reg_unk, sum)) |>
+  summarize(voter_turnout = mean(voter_turnout, na.rm=TRUE), across(reg_all:reg_unk, sum)) |>
   mutate(
     across(
       .cols = reg_gender_male:reg_unk, # for each column that starts with 'reg' (except for reg_all),
@@ -115,6 +120,12 @@ sldu_demogr <- TN_voter_data |>
   
 colnames(sldu_demogr) <- str_replace(colnames(sldu_demogr), 'reg_', '') # remove 'reg' from column names since it's been replaced with 'pct'
 ```
+
+```{r}
+sldl_demogr |>
+  slice_head(n=2)
+```
+
 
 Reading in TN state house and senate district boundaries:
 ```{r}
@@ -171,48 +182,162 @@ sldl_demogr <- sldl_demogr |>
                 full_join(sldl_pop, by = 'SLDL')
 ```
 
-Adding columns for percent incarcerated, voting strength, and the presence of 1 or more prisons:
+Adding columns for percent incarcerated and the presence of 1 or more prisons; combining age groups into fewer groups:
 ```{r}
 sldl_demogr <- sldl_demogr |>
   mutate(pct_incarc = prison_pop / cvap_total * 100,
-         vote_strength = cvap_total / (cvap_total - prison_pop),
-         prisons_present = if_else(prison_pop > 0, TRUE, FALSE)) |>
-  relocate(c(prison_pop, cvap_total, pct_incarc, vote_strength, prisons_present), .after = SLDL)
+         prisons_present = if_else(prison_pop > 0, TRUE, FALSE),
+         pct_under_30 = pct_age_18_19 + pct_age_20_24 + pct_age_25_29,
+         pct_30_to_44 = pct_age_30_34 + pct_age_35_44,
+         pct_45_to_64 = pct_age_45_54 + pct_age_55_64,
+         pct_65_plus = pct_age_65_74 + pct_age_75_84) |>
+  select(-(starts_with('pct_age'))) |>
+  relocate(c(prison_pop, total_pop, cvap_total, pct_incarc, vote_strength, prisons_present), .after = SLDL)
 
 sldu_demogr <- sldu_demogr |>
   mutate(pct_incarc = prison_pop / cvap_total * 100,
-         vote_strength = cvap_total / (cvap_total - prison_pop),
-         prisons_present = if_else(prison_pop > 0, TRUE, FALSE)) |>
-  relocate(c(prison_pop, cvap_total, pct_incarc, vote_strength, prisons_present), .after = SLDU)
+         prisons_present = if_else(prison_pop > 0, TRUE, FALSE),
+         pct_under_30 = pct_age_18_19 + pct_age_20_24 + pct_age_25_29,
+         pct_30_to_44 = pct_age_30_34 + pct_age_35_44,
+         pct_45_to_64 = pct_age_45_54 + pct_age_55_64,
+         pct_65_plus = pct_age_65_74 + pct_age_75_84) |>
+  select(-(starts_with('pct_age'))) |>
+  relocate(c(prison_pop, total_pop, cvap_total, pct_incarc, vote_strength, prisons_present), .after = SLDU)
 ```
 
+Now we will redistribute the prison population among districts, weighting by non-inmate population, as a correction for prison malapportionment.
+
+After redistributing the prison population, we will be able to calculate a "vote strength" metric. 
+
+### State house:
+
 ```{r}
-sldl_demogr
+tot_prison_pop <- sldl_demogr |>
+  summarize(sum(prison_pop)) |> pull()
+tot_nonprison_pop <- sldl_demogr |>
+  summarize(sum(total_pop - prison_pop)) |> pull()
+
+sldl_demogr <- sldl_demogr |>
+  mutate(pop_weight = (total_pop - prison_pop)/tot_nonprison_pop,
+         # Create new column for adjusted population, which is population plus a weighted portion of the prison population
+         pop_adj = total_pop - prison_pop + (pop_weight * tot_prison_pop),
+         cvap_adj = cvap_total - prison_pop + (pop_weight * tot_prison_pop),
+         # Create a new column for vote strength, which is voting population minus prison population divided by adjusted population
+         vote_strength = (cvap_total - prison_pop)/cvap_adj) |>
+  relocate(pop_weight, pop_adj, cvap_adj, .after = SLDL)
 ```
+
+
+
+Would any of TN's legislative districts be legally too small if inmates were redistributed?
+
 ```{r}
-sldu_demogr
+# Calculating percent difference between the largest and smallest districts after redistributing the prison population
+largest_district <- sldl_demogr |> slice_max(pop_adj) |> select(pop_adj) |> pull()
+smallest_district <- sldl_demogr |> slice_min(pop_adj) |> select(pop_adj) |> pull()
+
+((largest_district - smallest_district)/smallest_district)*100
 ```
+After redistributing the prison population, the largest district is 19.86% larger than the smallest district, which is greater than the generally accepted 10% threshold.
+
+### State senate:
+
+```{r}
+tot_prison_pop <- sldu_demogr |>
+  summarize(sum(prison_pop)) |> pull()
+tot_nonprison_pop <- sldu_demogr |>
+  summarize(sum(total_pop - prison_pop)) |> pull()
+
+sldu_demogr <- sldu_demogr |>
+  mutate(pop_weight = (total_pop - prison_pop)/tot_nonprison_pop,
+         # Create new column for adjusted population, which is population plus a weighted portion of the prison population
+         pop_adj = total_pop - prison_pop + (pop_weight * tot_prison_pop),
+         cvap_adj = cvap_total - prison_pop + (pop_weight * tot_prison_pop),
+         # Create a new column for vote strength, which is voting population minus prison population divided by adjusted population
+         vote_strength = (cvap_total - prison_pop)/cvap_adj) |>
+  relocate(pop_weight, pop_adj, cvap_adj, .after = SLDU)
+```
+
+
+```{r}
+# Calculating percent difference between the largest and smallest districts after redistributing the prison population
+largest_district <- sldu_demogr |> slice_max(pop_adj) |> select(pop_adj) |> pull()
+smallest_district <- sldu_demogr |> slice_min(pop_adj) |> select(pop_adj) |> pull()
+
+((largest_district - smallest_district)/smallest_district)*100
+```
+After redistributing the prison population, the largest district is 15% larger than the smallest district, which is greater than the generally accepted 10% threshold.
+
+
 # Statistical analysis:
 
 ## For state house districts: 
 
+### Base model:
 How much of an increase in voting strength can we expect based on the presence of 1 or more prisons in a district? 
 ```{r}
 # creating a linear regression model with x = presence of 1 or more prisons, and y = vote strength
 lm_prisons_present = lm(vote_strength ~ prisons_present, data = sldl_demogr)
 summary(lm_prisons_present)
 ```
-On average, a state house district containing one or more prisons will have a vote strength that is 0.0379 greater than a district that lacks prisons. This result is statistically significant.
+The presence of a prison does not have a statistically significant effect on voting strength.
 
-How strongly does a district's partisan makeup correlate with its voting strength?
+### Examining other variables:
+
+#### Partisan makeup:
+Do districts with prisons have significantly different partisan makeup than districts without prisons?
 ```{r}
-# creating a linear regression model with x = percent of voting age population registered as Democrat, and y = vote strength
-sldl_dem_votestrength = lm(vote_strength ~ pct_party_democratic, data = sldl_demogr)
-summary(sldl_dem_votestrength)
+# creating a linear regression model with x = prisons_present, and y = percent of voting age population registered as Democrat
+sldl_dem_prisons = lm(pct_party_democratic ~ prisons_present, data = sldl_demogr)
+summary(sldl_dem_prisons)
 ```
-There is not a statistically significant relationship between partisan makeup and vote strength.
+There is not a statistically significant relationship between the presence of a prison and the partisan makeup of the district. 
+
+##### Gender makeup:
+```{r}
+# creating a linear regression model with x = prisons_present, and y = percent of voting age population that is male
+sldl_male_prisons = lm(pct_gender_male ~ prisons_present, data = sldl_demogr)
+summary(sldl_male_prisons)
+```
+
+There is not a statistically significant relationship between the presence of a prison and the gender makeup of the district. 
+
+#### Percent of people under 30:
+```{r}
+# creating a linear regression model with x = prisons_present, and y = percent of voting age population that is under 30
+sldl_under30_prisons = lm(pct_under_30 ~ prisons_present, data = sldl_demogr)
+summary(sldl_under30_prisons)
+```
+There is not a statistically significant relationship between the presence of a prison and the percent of the voting age population that is under 30.  
+
+##### Percent of people 65+:
+```{r}
+# creating a linear regression model with x = prisons_present, and y = percent of voting age population that is 65 or older
+sldl_65up_prisons = lm(pct_65_plus ~ prisons_present, data = sldl_demogr)
+summary(sldl_65up_prisons)
+```
+There is not a statistically significant relationship between the presence of a prison and the percent of the voting age population that is 65 or older.  
+
+#### Race:
+```{r}
+# creating a linear regression model with x = prisons_present, and y = percent of voting age population that is white
+sldl_white_prisons = lm(pct_eur ~ prisons_present, data = sldl_demogr)
+summary(sldl_white_prisons)
+```
+There is not a statistically significant relationship between the presence of a prison and the percent of the voting age population that is white.  
+
+##### Political engagement:
+We will use voter turnout in the 2024 election as a proxy for political engagement.
+```{r}
+# creating a linear regression model with x = prisons_present, and y = voter turnout
+sldl_turnout_prisons = lm(pct_party_democratic ~ prisons_present, data = sldl_demogr)
+summary(sldl_turnout_prisons)
+```
+There is not a statistically significant relationship between the presence of a prison and voter turnout. 
 
 ## For state senate districts:
+
+### Base model:
 
 How much of an increase in voting strength can we expect based on the presence of 1 or more prisons in a district? 
 ```{r}
@@ -220,15 +345,64 @@ How much of an increase in voting strength can we expect based on the presence o
 sldu_prisons_present = lm(vote_strength ~ prisons_present, data = sldu_demogr)
 summary(sldu_prisons_present)
 ```
-On average, a state senate district containing one or more prisons will have a vote strength that is 0.013 greater than a district that lacks prisons. This result is statistically significant.
+The presence of a prison does not have a statistically significant effect on voting strength.
 
-How strongly does a district's partisan makeup correlate with its voting strength?
+### Examining other variables: 
+
+##### Partisan makeup:
+
+Do districts with prisons have significantly different partisan makeup than districts without prisons?
 ```{r}
-# creating a linear regression model with x = percent of voting age population registered as Democrat, and y = vote strength
-sldu_dem_votestrength = lm(vote_strength ~ pct_party_democratic, data = sldu_demogr)
-summary(sldu_dem_votestrength)
+# creating a linear regression model with x = prisons_present, and y = percent of voting age population registered as Democrat
+sldu_dem_prisons = lm(pct_party_democratic ~ prisons_present, data = sldu_demogr)
+summary(sldu_dem_prisons)
 ```
-There is not a statistically significant relationship between partisan makeup and vote strength.
+There is not a statistically significant relationship between the presence of a prison and the partisan makeup of the district. 
+
+##### Gender makeup:
+
+Do districts with prisons have significantly different demographic makeup than districts without prisons?
+```{r}
+# creating a linear regression model with x = prisons_present, and y = percent of voting age population that is male
+sldu_male_prisons = lm(pct_gender_male ~ prisons_present, data = sldu_demogr)
+summary(sldu_male_prisons)
+```
+There is not a statistically significant relationship between the presence of a prison and the gender makeup of the district. 
+
+#### Percent of people under 30:
+```{r}
+# creating a linear regression model with x = prisons_present, and y = percent of voting age population that is under 30
+sldu_under30_prisons = lm(pct_under_30 ~ prisons_present, data = sldu_demogr)
+summary(sldu_under30_prisons)
+```
+There is not a statistically significant relationship between the presence of a prison and the percent of the voting age population that is under 30.  
+
+##### Percent of people 65+:
+```{r}
+# creating a linear regression model with x = prisons_present, and y = percent of voting age population that is 65 or older
+sldu_65up_prisons = lm(pct_65_plus ~ prisons_present, data = sldu_demogr)
+summary(sldu_65up_prisons)
+```
+There is not a statistically significant relationship between the presence of a prison and the percent of the voting age population that is 65 or older.  
+
+#### Race:
+```{r}
+# creating a linear regression model with x = prisons_present, and y = percent of voting age population that is white
+sldu_white_prisons = lm(pct_eur ~ prisons_present, data = sldu_demogr)
+summary(sldu_white_prisons)
+```
+There is not a statistically significant relationship between the presence of a prison and the percent of the voting age population that is white.  
+
+
+##### Political engagement:
+We will use voter turnout in the 2024 election as a proxy for political engagement.
+```{r}
+# creating a linear regression model with x = prisons_present, and y = voter turnout
+sldu_turnout_prisons = lm(pct_party_democratic ~ prisons_present, data = sldu_demogr)
+summary(sldu_turnout_prisons)
+```
+There is not a statistically significant relationship between the presence of a prison and voter turnout. 
+
 
 # Preliminary visualizations:
 ```{r}
@@ -271,5 +445,9 @@ addPolygons(
     label = ~as.character(name)
   )
 ```
+
+
+
+
 
 
