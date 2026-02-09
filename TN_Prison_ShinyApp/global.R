@@ -5,6 +5,8 @@ library(DT)
 library(tidyverse)
 library(shinydashboard)
 library(sf)
+library(htmltools)
+library(scales)
 
 # Reading in data
 prisons_sldu <- readRDS('../Data/prisons_sldu.rds') 

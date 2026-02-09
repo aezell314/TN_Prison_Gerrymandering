@@ -18,8 +18,18 @@ navbarPage("TN Prison Gerrymandering", id="nav",
                                           "TN State House" = "sldl",
                                           "TN State Senate" = "sldu"
                                         )
+                                        ),
+                                        
+                                        h4("Selected District:"),
+                                        textOutput("district_display"),
+                                        
+                                        textOutput("pop_display"),
+                                        textOutput("prison_pop_display"),
+                                        
+                                        plotOutput("partisanBarPlot", height = 250)
+                                        
+                                        
                                         )
-                                      )
                                       
                         ),
                         
@@ -27,6 +37,6 @@ navbarPage("TN Prison Gerrymandering", id="nav",
            ),
            
            tabPanel("Data explorer",
-           ),
+           )
            
 )
