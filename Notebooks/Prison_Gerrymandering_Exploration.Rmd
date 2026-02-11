@@ -20,21 +20,21 @@ Collecting prison data:
 #   https://en.wikipedia.org/wiki/Whiteville_Correctional_Facility
 
 prison_info <- tibble::tribble(
-~name,                  ~address,                    ~capacity,
-'Bledsoe County Correctional Complex',          '1045 Horsehead Road, Pikeville, TN 37367-7432',   2265,
-'Debra K. Johnson Rehabilitation Center',       '3881 Stewarts Lane, Nashville, TN 37243-0468',    817,
-'Hardeman County Correctional Facility',         '2520 Union Springs Road, Whiteville, TN 38075-7548',   1976,
-'Lois M. DeBerry Special Needs Facility',        '7575 Cockrill Bend Boulevard, Nashville, TN 37209-1057',   854,
-'Mark Luttrell Transition Center',            '6000 State Road, Memphis, TN 38134-7628',     288,
-'Morgan County Correctional Complex',           '541 Wayne Cotton Morgan Drive, Wartburg, TN 37887-3249',   2128,
-'Northeast Correctional Complex',               '5249 Highway 67 West, Mountain City, TN 37683-5000',  1701,
-'Northwest Correctional Complex',               '960 State Route 212, Tiptonville, TN 38079-4037', 1776,
-'Riverbend Maximum Security Institution',       '7475 Cockrill Bend Boulevard, Nashville, TN 37243-0471', 786,
-'South Central Correctional Facility',         '555 Forest Avenue, Clifton, TN 38425-0279', 1676,
-'Trousdale Turner Correctional Center',        '140 Macon Way, Hartsville, TN 37074-2080',    2672,
-'Turney Center Industrial Complex',             '1499 R.W. Moore Memorial Highway, Only, TN 37140-4050',  1574,
-'Whiteville Correctional Facility',            '1440 Union Springs Road, Whiteville, TN 38075-7526',   1536,
-'West Tennessee State Penitentiary',           '480 Green Chapel Road, Henning, TN 38041-1150',   980
+~name,                  ~address,                    ~capacity,                   ~year_opened,                    ~city,
+'Bledsoe County Correctional Complex',          '1045 Horsehead Road, Pikeville, TN 37367-7432',   2265,    2012,  'Pikeville, TN',
+'Debra K. Johnson Rehabilitation Center',       '3881 Stewarts Lane, Nashville, TN 37243-0468',    817,      1966, 'Nashville, TN',
+'Hardeman County Correctional Facility',         '2520 Union Springs Road, Whiteville, TN 38075-7548',   1976,    1997,  'Nashville, TN',
+'Lois M. DeBerry Special Needs Facility',        '7575 Cockrill Bend Boulevard, Nashville, TN 37209-1057',   854,    1992, 'Nashville, TN',
+'Mark Luttrell Transition Center',            '6000 State Road, Memphis, TN 38134-7628',     288,   1999,   'Memphis, TN',
+'Morgan County Correctional Complex',           '541 Wayne Cotton Morgan Drive, Wartburg, TN 37887-3249',   2128,   1980,   'Wartburg, TN',
+'Northeast Correctional Complex',               '5249 Highway 67 West, Mountain City, TN 37683-5000',  1701,    1991,  'Mountain City, TN',
+'Northwest Correctional Complex',               '960 State Route 212, Tiptonville, TN 38079-4037', 1776,    1981,   'Tiptonville, TN',
+'Riverbend Maximum Security Institution',       '7475 Cockrill Bend Boulevard, Nashville, TN 37243-0471', 786, 1989,  'Nashville, TN',
+'South Central Correctional Facility',         '555 Forest Avenue, Clifton, TN 38425-0279', 1676,    	1992,   'Clifton, TN',
+'Trousdale Turner Correctional Center',        '140 Macon Way, Hartsville, TN 37074-2080',    2672,  2016,  'Hartsville, TN',
+'Turney Center Industrial Complex',             '1499 R.W. Moore Memorial Highway, Only, TN 37140-4050',  1574,   1971,  'Only, TN',
+'Whiteville Correctional Facility',            '1440 Union Springs Road, Whiteville, TN 38075-7526',   1536,  2002,  'Whiteville, TN',
+'West Tennessee State Penitentiary',           '480 Green Chapel Road, Henning, TN 38041-1150',   980,  1990,  'Henning, TN',
 )
 
 # Geocode the prison addresses
@@ -55,7 +55,7 @@ prison_info <- prison_info |>
 Reading in population data:
 ```{r}
 sldl_pop <- read_csv('../Data/tn_cvap_2023_sldl/tn_cvap_2023_sldl.csv') |>
-  select(SLDL, CVAP_TOT23, ALL_TOT23) |>
+  dplyr::select(SLDL, CVAP_TOT23, ALL_TOT23) |>
   rename(cvap_total = CVAP_TOT23,
           total_pop = ALL_TOT23) 
 
@@ -63,18 +63,39 @@ head(sldl_pop)
 ```
 ```{r}
 sldu_pop <- read_csv('../Data/tn_cvap_2023_sldu/tn_cvap_2023_sldu.csv') |>
-  select(SLDU, CVAP_TOT23, ALL_TOT23) |>
+  dplyr::select(SLDU, CVAP_TOT23, ALL_TOT23) |>
   rename(cvap_total=CVAP_TOT23,
          total_pop = ALL_TOT23)
 
 head(sldu_pop)
 ```
+Reading in district partisan lean data:
+
+```{r}
+sldl_partisan <- read_csv('../Data/district-data-sldl/district-data.csv') |>
+  select(ID, `E_16-20_COMP_Total`, `E_16-20_COMP_Dem`, `E_16-20_COMP_Rep`) |>
+  filter(ID != 0) |>
+  rename(SLDL=ID) |>
+  mutate(pct_dem = `E_16-20_COMP_Dem`/`E_16-20_COMP_Total`,
+         pct_rep = `E_16-20_COMP_Rep`/`E_16-20_COMP_Total`) |>
+  select(-starts_with('E_16-20'))
+```
+```{r}
+sldu_partisan <- read_csv('../Data/district-data-sldu/district-data.csv') |>
+  select(ID, `E_16-20_COMP_Total`, `E_16-20_COMP_Dem`, `E_16-20_COMP_Rep`) |>
+  filter(ID != 0) |>
+  rename(SLDU=ID) |>
+  mutate(pct_dem = `E_16-20_COMP_Dem`/`E_16-20_COMP_Total`,
+         pct_rep = `E_16-20_COMP_Rep`/`E_16-20_COMP_Total`) |>
+  select(-starts_with('E_16-20'))
+```
+
 Reading in voter registration and demographic data, using census block mapping data to aggregate by district:
 ```{r}
 TN_voter_data <- read_csv('../Data/TN_l2_2024_gen_stats_2020block/TN_l2_2024_gen_stats_2020block.csv') |>
   rename(GEOID20=geoid20,
          voter_turnout=pct_voted_all) |>
-  select(-starts_with(c('voted', 'pct_voted', 'reg_self_afam')))  # drop specific voter turnout percentages except for overall turnout
+  dplyr::select(-starts_with(c('voted', 'pct_voted', 'reg_self_afam')))  # drop specific voter turnout percentages except for overall turnout
 
 # adding census block mapping data for senate districts
 TN_voter_data <- full_join(TN_voter_data, read_csv('../Data/block-assignments_statesenate.csv'), by = 'GEOID20') |> 
@@ -99,8 +120,9 @@ sldl_demogr <- TN_voter_data |>
       .names = 'pct_{.col}'   # and update the naming convention for the new columns
     )
   ) |>
-  select(-starts_with('reg_')) |> # drop the columns that were used in the mutate
-  ungroup()
+  ungroup() |>
+  dplyr::select(-starts_with('reg_')) |> # drop the columns that were used in the mutate
+  dplyr::select(-starts_with('pct_party_')) # drop voter registration columns since we are using election results instead
   
 colnames(sldl_demogr) <- str_replace(colnames(sldl_demogr), 'reg_', '') # remove 'reg' from column names since it's been replaced with 'pct'
 
@@ -115,22 +137,31 @@ sldu_demogr <- TN_voter_data |>
       .names = 'pct_{.col}'   # and update the naming convention for the new columns
     )
   ) |>
-  select(-starts_with('reg_')) |> # drop the columns that were used in the mutate 
-  ungroup()
+  ungroup() |>
+  dplyr::select(-starts_with('reg_')) |> # drop the columns that were used in the mutate 
+  dplyr::select(-starts_with('pct_party_')) # drop voter registration columns since we are using election results instead 
   
 colnames(sldu_demogr) <- str_replace(colnames(sldu_demogr), 'reg_', '') # remove 'reg' from column names since it's been replaced with 'pct'
 ```
 
+Merging in partisan data:
 ```{r}
-sldl_demogr |>
-  slice_head(n=2)
+sldl_demogr <- full_join(sldl_demogr, sldl_partisan, by = 'SLDL') 
+sldl_demogr
 ```
-
+```{r}
+sldu_demogr <- full_join(sldu_demogr, sldu_partisan, by = 'SLDU') 
+sldu_demogr
+```
 
 Reading in TN state house and senate district boundaries:
 ```{r}
 TN_house_bounds <- st_read('../Data/tn_sldl_adopted_2022/house_districts.shp')
 TN_senate_bounds <- st_read('../Data/tn_sldu_adopted_2022/finalsenatedistricts1-17-22.shp')
+```
+```{r}
+TN_senate_bounds |>
+  st_drop_geometry()
 ```
 
 ```{r}
@@ -156,6 +187,8 @@ prisons_sldl <-
 prisons_sldu <- 
   st_join(TN_senate_bounds, prison_info, join = st_contains)
 ```
+
+
 
 Adding prison populations and total populations to the SLDL and SLDU district demographic tibbles:
 ```{r}
@@ -191,7 +224,7 @@ sldl_demogr <- sldl_demogr |>
          pct_30_to_44 = pct_age_30_34 + pct_age_35_44,
          pct_45_to_64 = pct_age_45_54 + pct_age_55_64,
          pct_65_plus = pct_age_65_74 + pct_age_75_84) |>
-  select(-(starts_with('pct_age'))) |>
+  dplyr::select(-(starts_with('pct_age'))) |>
   relocate(c(prison_pop, total_pop, cvap_total, pct_incarc, prisons_present), .after = SLDL)
 
 sldu_demogr <- sldu_demogr |>
@@ -201,7 +234,7 @@ sldu_demogr <- sldu_demogr |>
          pct_30_to_44 = pct_age_30_34 + pct_age_35_44,
          pct_45_to_64 = pct_age_45_54 + pct_age_55_64,
          pct_65_plus = pct_age_65_74 + pct_age_75_84) |>
-  select(-(starts_with('pct_age'))) |>
+  dplyr::select(-(starts_with('pct_age'))) |>
   relocate(c(prison_pop, total_pop, cvap_total, pct_incarc, prisons_present), .after = SLDU)
 ```
 
@@ -221,12 +254,13 @@ sldl_demogr <- sldl_demogr |>
   mutate(pop_weight = (total_pop - prison_pop)/tot_nonprison_pop,
          # Create new column for adjusted population, which is population plus a weighted portion of the prison population
          pop_adj = total_pop - prison_pop + (pop_weight * tot_prison_pop),
+         prison_pop_adj = tot_prison_pop*pop_weight,
          cvap_adj = cvap_total - prison_pop + (pop_weight * tot_prison_pop),
          # Create a new column for vote strength, which is voting population minus prison population divided by adjusted population
          vote_strength = (cvap_total - prison_pop)/cvap_adj) |>
   relocate(pop_adj, cvap_adj, .after = SLDL) |>
   # drop weights since they are not needed
-  select(-pop_weight)
+  dplyr::select(-pop_weight)
 ```
 
 
@@ -260,12 +294,13 @@ sldu_demogr <- sldu_demogr |>
   mutate(pop_weight = (total_pop - prison_pop)/tot_nonprison_pop,
          # Create new column for adjusted population, which is population plus a weighted portion of the prison population
          pop_adj = total_pop - prison_pop + (pop_weight * tot_prison_pop),
+         prison_pop_adj = tot_prison_pop*pop_weight,
          cvap_adj = cvap_total - prison_pop + (pop_weight * tot_prison_pop),
          # Create a new column for vote strength, which is voting population minus prison population divided by adjusted population
          vote_strength = (cvap_total - prison_pop)/cvap_adj) |>
   relocate(pop_adj, cvap_adj, .after = SLDU) |>
   # drop weights since they are not needed
-  select(-pop_weight)
+  dplyr::select(-pop_weight)
 ```
 
 ```{r}
@@ -282,6 +317,7 @@ sldu_demogr <- sldu_demogr |>
 sldu_demogr
 ```
 After redistributing the inmate population among state senate districts, none of the districts exceed a 10% deviation from the 'ideal' population. 
+
 
 # Statistical analysis:
 
@@ -315,14 +351,14 @@ Do districts with prisons have significantly different partisan makeup than dist
 ##### For state house districts:
 ```{r}
 # creating a linear regression model with x = prisons_present, and y = percent of voting age population registered as Democrat
-sldl_dem_prisons = lm(pct_party_democratic ~ prisons_present, data = sldl_demogr)
+sldl_dem_prisons = lm(pct_dem ~ prisons_present, data = sldl_demogr)
 summary(sldl_dem_prisons)
 ```
 
 ##### For state senate districts:
 ```{r}
 # creating a linear regression model with x = prisons_present, and y = percent of voting age population registered as Democrat
-sldu_dem_prisons = lm(pct_party_democratic ~ prisons_present, data = sldu_demogr)
+sldu_dem_prisons = lm(pct_dem ~ prisons_present, data = sldu_demogr)
 summary(sldu_dem_prisons)
 ```
 
@@ -390,14 +426,14 @@ There is not a statistically significant relationship between the presence of a 
 We will use voter turnout in the 2024 election as a proxy for political engagement.
 ```{r}
 # creating a linear regression model with x = prisons_present, and y = voter turnout
-sldl_turnout_prisons = lm(pct_party_democratic ~ prisons_present, data = sldl_demogr)
+sldl_turnout_prisons = lm(pct_dem ~ prisons_present, data = sldl_demogr)
 summary(sldl_turnout_prisons)
 ```
 
 ##### For state senate districts:
 ```{r}
 # creating a linear regression model with x = prisons_present, and y = voter turnout
-sldu_turnout_prisons = lm(pct_party_democratic ~ prisons_present, data = sldu_demogr)
+sldu_turnout_prisons = lm(pct_dem ~ prisons_present, data = sldu_demogr)
 summary(sldu_turnout_prisons)
 ```
 There is not a statistically significant relationship between the presence of a prison and voter turnout. 
@@ -432,18 +468,18 @@ Do districts with a greater population deviation (after redistributing the priso
 ##### For state house districts:
 ```{r}
 # creating a linear regression model with x = prisons_present, and y = percent of voting age population registered as Democrat
-sldl_dem_prisons = lm(pct_party_democratic ~ pct_pop_dev_adj, data = sldl_demogr)
+sldl_dem_prisons = lm(pct_dem ~ pct_pop_dev_adj, data = sldl_demogr)
 summary(sldl_dem_prisons)
 ```
 
 ##### For state senate districts:
 ```{r}
 # creating a linear regression model with x = prisons_present, and y = percent of voting age population registered as Democrat
-sldu_dem_prisons = lm(pct_party_democratic ~ pct_pop_dev_adj, data = sldu_demogr)
+sldu_dem_prisons = lm(pct_dem ~ pct_pop_dev_adj, data = sldu_demogr)
 summary(sldu_dem_prisons)
 ```
 
-There is not a statistically significant relationship between population deviation and the partisan makeup of state house districts; for state senate districts, there is a statistically significant relationship - each additional percentage of population deviation results in about a 1% decrease in the percentage of voters who are registered as Democrats, meaning the larger state senate districts are more likely to be heavily Republican.  
+There is not a statistically significant relationship between population deviation and the partisan makeup of state house districts.
 
 
 #### Percent of people under 30:
@@ -621,6 +657,7 @@ saveRDS(sldu_demogr, file = "../Data/sldu_demogr.rds")
 saveRDS(sldl_demogr, file = "../Data/sldl_demogr.rds")
 saveRDS(TN_house_bounds, file = "../Data/TN_house_bounds.rds")
 saveRDS(TN_senate_bounds, file = "../Data/TN_senate_bounds.rds")
+saveRDS(prison_info, file = "../Data/prison_info.rds")
 ```
 
 

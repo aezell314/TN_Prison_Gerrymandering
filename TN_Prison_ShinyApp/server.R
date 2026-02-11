@@ -32,12 +32,13 @@ function(input, output, session) {
         data = prison_info,
         lng = ~longitude,
         lat = ~latitude,
-        popup = ~paste0("<strong>Prison: </strong>", name, "<br><strong>Capacity: </strong>", prettyNum(capacity, big.mark = ",")), 
+        popup = ~paste0("<strong>Prison: </strong>", name, "<br><strong>Capacity: </strong>", prettyNum(capacity, big.mark = ","), "<br><strong>Location: </strong>", city, "<br><strong>Year Opened: </strong>", year_opened), 
         label = ~as.character(name)
        ) 
   })
   
   plot_data <- reactiveVal(NULL) 
+  clicked_district_num <- reactiveVal(NULL)
   
   # Observe click events on the map
   observeEvent(input$map_shape_click, {
@@ -45,16 +46,7 @@ function(input, output, session) {
     click <- input$map_shape_click
     
     # Extract the layerId, which is our district number
-    clicked_district_num <- click$id
-    
-    # Update the textOutput in the absolute panel
-    output$district_display <- renderText({
-      if (is.null(clicked_district_num)) {
-        "None selected"
-      } else {
-        paste0("District #", clicked_district_num)
-      }
-    })
+    clicked_district_num(click$id)
     
     # Calculate plot data based on district and district type selected 
     if (input$disttype == "sldl") {
@@ -65,41 +57,70 @@ function(input, output, session) {
       district <- 'SLDU'
     } 
     
-    new_data <- if (is.null(clicked_district_num)) {
+    new_data <- if (is.null(clicked_district_num())) {
       base_data
     } else{
       base_data |>
-        filter(.data[[district]] == clicked_district_num)
+        filter(.data[[district]] == clicked_district_num())
     }
     
     # Store the data
     plot_data(new_data) 
   })
-  
-  output$pop_display <- renderText({
-    # Req ensures plot doesn't render until data exists
-    req(plot_data()) 
-    pop <- plot_data() |> dplyr::select(total_pop) |> pull()
-    paste("Population:", prettyNum(pop, big.mark = ","))
+    
+  # Update the textOutput in the absolute panel
+  output$district_display <- renderText({
+    if (is.null(clicked_district_num())) {
+      "None selected"
+    } else {
+      paste0("District #", clicked_district_num())
+    }
   })
   
-  output$prison_pop_display <- renderText({
-    # Req ensures plot doesn't render until data exists
+  output$popTable <- renderDataTable({
     req(plot_data()) 
-    pop <- plot_data() |> dplyr::select(prison_pop) |> pull()
-    paste("Prison population:", prettyNum(pop, big.mark = ","))
+    current_pop <- plot_data() |>
+      select(total_pop, pct_pop_dev, prison_pop) |>
+      mutate(across(where(is.numeric), round, digits = 2)) |>
+      mutate(across(where(is.numeric), as.character)) |>
+      mutate(pct_pop_dev = paste0(pct_pop_dev,'%')) |>
+      rename('Total'=total_pop, 'Deviation'=pct_pop_dev, 'Incarcerated'=prison_pop) |>
+      pivot_longer(cols = everything(), names_to = 'Population', values_to = 'Current')
+    
+    adj_pop <- plot_data() |>
+      select(pop_adj, pct_pop_dev_adj, prison_pop_adj) |>
+      mutate(across(where(is.numeric), round, digits = 2)) |>
+      mutate(across(where(is.numeric), as.character)) |>
+      mutate(pct_pop_dev_adj = paste0(pct_pop_dev_adj,'%')) |>
+      pivot_longer(cols = everything(), names_to = 'Population', values_to = 'Adjusted') |>
+      select('Adjusted')
+    
+    combined_pop <- cbind(current_pop, adj_pop)
+    
+    combined_pop
+    
   })
   
   output$partisanBarPlot <- renderPlot({
-    # Req ensures plot doesn't render until data exists
     req(plot_data()) 
-    
     plot_data() |> 
-    pivot_longer(cols=pct_party_democratic:pct_party_ind_npp, names_to = 'category', values_to = 'percent') |>
-    mutate(category = factor(category, levels=c('pct_party_democratic','pct_party_republican','pct_party_ind_npp'), labels=c('Democratic', 'Republican', 'Independent'))) |>
+    pivot_longer(cols=pct_dem:pct_rep, names_to = 'category', values_to = 'percent') |>
+    mutate(category = factor(category, levels=c('pct_dem','pct_rep'), labels=c('Democratic', 'Republican'))) |>
     ggplot(aes(x=category, y=percent)) +
-    geom_col() + 
-    labs(x='Party Affiliation', y='Percent')
+    geom_col(colour = "black", fill = "#669933") + 
+    labs(x='Party Affiliation', y='Percent') +
+    theme_minimal()
+  })
+  
+  output$raceBarPlot <- renderPlot({
+    req(plot_data()) 
+    plot_data() |> 
+      pivot_longer(cols=pct_eur:pct_aa, names_to = 'category', values_to = 'percent') |>
+      mutate(category = factor(category, levels=c('pct_eur','pct_hisp','pct_aa'), labels=c('White', 'Hispanic', 'African-American'))) |>
+      ggplot(aes(x=category, y=percent)) +
+      geom_col(colour = "black", fill = "#FFCC66") + 
+      labs(x='Race', y='Percent') +
+      theme_minimal()
   })
   
 }

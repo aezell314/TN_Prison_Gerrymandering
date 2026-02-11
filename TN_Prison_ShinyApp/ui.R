@@ -5,7 +5,7 @@ navbarPage("TN Prison Gerrymandering", id="nav",
            tabPanel("Interactive map",
                     div(class="outer",
                         
-                        leafletOutput("map", width="100%", height="900"),
+                        leafletOutput("map", width="95%", height="900"),
                         
                         absolutePanel(id = "controls", class = "panel panel-default", fixed = TRUE,
                                       draggable = TRUE, top = 80, left = "auto", right = 30, bottom = "auto",
@@ -21,12 +21,13 @@ navbarPage("TN Prison Gerrymandering", id="nav",
                                         ),
                                         
                                         h4("Selected District:"),
+                                        
                                         textOutput("district_display"),
                                         
-                                        textOutput("pop_display"),
-                                        textOutput("prison_pop_display"),
+                                        dataTableOutput("popTable"),
                                         
-                                        plotOutput("partisanBarPlot", height = 250)
+                                        plotOutput("partisanBarPlot", height = 200),
+                                        plotOutput("raceBarPlot", height = 200)
                                         
                                         
                                         )
@@ -34,9 +35,6 @@ navbarPage("TN Prison Gerrymandering", id="nav",
                         ),
                         
                     )
-           ),
-           
-           tabPanel("Data explorer",
            )
            
 )
