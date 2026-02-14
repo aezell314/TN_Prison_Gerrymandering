@@ -18,10 +18,10 @@ function(input, output, session) {
       addTiles() |> 
       addPolygons(
         data = plot_data,
-        color = "#444444",
-        weight = 1,
+        color = ~ifelse(has_prison, "#0F52BA", "#444444"),
         fillOpacity = 0.5,
-        fillColor = "#fec44f",
+        fillColor = ~ifelse(has_prison, "#fe9929", "#fec44f"),
+        weight = ~ifelse(has_prison, 3, 1),
         layerId = ~DISTRICT,
         highlightOptions = highlightOptions(
           color = "red", weight = 3
