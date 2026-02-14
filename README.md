@@ -4,7 +4,7 @@
 
 This project evaluates Tennessee’s legislative districts for effects of prison gerrymandering.
 
-**Prison gerrymandering** (or **prison malapportionment**) refers to the phenomenon where the federal census records the home address of prison inmates as the prison where they are incarcerated, rather than their pre-incarceration address. Census population data is used to inform state legislative district boundaries; state law dictates that districts have roughly equal populations. This can result in an inflation of voting power in areas near large prisons (since prison inmates are disenfranchised in Tennessee) and a dilution of voting power in areas where prison inmates call home.
+**Prison gerrymandering** (or **prison malapportionment**) refers to the phenomenon where the federal census records the home address of prison inmates as the prison where they are incarcerated, rather than their pre-incarceration address. Census population data is used to inform state legislative district boundaries; state law dictates that districts have roughly equal populations. This can result in an inflation of voting power in areas near large prisons (since prison inmates are disenfranchised in Tennessee) and a dilution of voting power in areas where prison inmates call home. A fantastic summary of prison gerrymandering can be found [here](https://redistrictingdatahub.org/resources/prison-gerrymandering/). 
 
 To evaluate the effects of prison malapportionment in Tennessee, this project uses prison data from [TN.gov](tn.gov), as well as population data from [Redistricting Data Hub](redistrictingdatahub.org). 
 
