@@ -32,14 +32,14 @@ There are no publicly available evaluations of prison gerrymandering for Tenness
 	 	 	 	
 ## R Shiny App
 
-The accompanying [R Shiny app](https://abigail-ezell.shinyapps.io/TN_Prison_Gerrymandering_ShinyApp/) allows users to visualize Tennessee’s current state house and state senate district boundaries. Districts that contain one or more state prisons are shaded slighly darker and are outlined in blue. The location of each of Tennessee's 14 state prison has a teardrop marker that can be clicked to reveal the prison's name, capacity, year opened, and city. Hovering over a district will outline the district boundaries and show the districct number; clicking anywhere in the district will populate a sidebar panel with that district's population statistics, partisan makeup, and race makeup.
+The accompanying [R Shiny app](https://abigail-ezell.shinyapps.io/TN_Prison_Gerrymandering_ShinyApp/) allows users to visualize Tennessee’s current state house and state senate district boundaries. Districts that contain one or more state prisons are shaded slighly darker and are outlined in blue. The location of each of Tennessee's 14 state prison has a teardrop marker that can be clicked to reveal the prison's name, capacity, year opened, and city. Hovering over a district will outline the district's boundary and show the district number; clicking anywhere in the district will populate a sidebar panel with population statistics, partisan makeup, and race makeup for that district.
 
  The application is intended to be used by state lawmakers or anyone else who is interested in exploring the effects of prison malapportionment in Tennessee. 
 
 ## Data Sources
 
-The shapefiles containing state legislative district boundaries came from [Redistricting Data Hub](redistrictingdatahub.org) (state house districts [here](https://abigail-ezell.shinyapps.io/TN_Prison_Gerrymandering_ShinyApp/) and state senate districts [here](https://abigail-ezell.shinyapps.io/TN_Prison_Gerrymandering_ShinyApp/). 
-Population numbers for TN state legislative districts are drawn from 2023 CVAP (Citizen Voting  Age Population) datasets from redistrictingdatahub.org (state house [here](https://abigail-ezell.shinyapps.io/TN_Prison_Gerrymandering_ShinyApp/) and state senate [here](https://abigail-ezell.shinyapps.io/TN_Prison_Gerrymandering_ShinyApp/). 
+The shapefiles containing state legislative district boundaries came from [Redistricting Data Hub](redistrictingdatahub.org) (state house districts [here](https://redistrictingdatahub.org/dataset/2022-tennessee-house-of-representatives-districts-approved-plan/) and state senate districts [here](https://redistrictingdatahub.org/dataset/2022-tennessee-senate-districts-approved-plan/). 
+Population numbers for TN state legislative districts are drawn from 2023 CVAP (Citizen Voting  Age Population) datasets from [Redistricting Data Hub](redistrictingdatahub.org) (state house [here](https://redistrictingdatahub.org/dataset/tennessee-2023-state-legislative-district-lower-cvap-data-2023/) and state senate [here](https://redistrictingdatahub.org/dataset/tennessee-2023-state-legislative-district-upper-cvap-data-2023/). 
 Partisan breakdown of TN state legislative districts comes from voter registration data gathered during the 2024 election (dataset here). 
 When necessary, precinct-level data is aggregated to state legislative district using precinct mapping information from [Dave's Redistricting](davesredistricting.org). 
 
@@ -51,7 +51,7 @@ Partisan data was drawn from [Dave's Redistricting](davesredistricting.org). Per
 * Senator 2024
 * Governor 2022 
 
-Information about TN state prisons, including address, capacity, and year opened data, comes from [TN.gov](https://www.tn.gov/correction/state-prisons/state-prison-list.html). Any information not available on tn.gov was obtained from [Wikipedia](https://www.wikipedia.org/). 
+Information about TN state prisons, including address, capacity, and year opened data, comes from [TN.gov](https://www.tn.gov/correction/state-prisons/state-prison-list.html). Any information not available on [TN.gov](https://www.tn.gov/correction/state-prisons/state-prison-list.html) was obtained from [Wikipedia](https://www.wikipedia.org/). 
 
 ## Limitations
 
@@ -63,7 +63,7 @@ For district population data, we used 2023 population projections based on the 2
 
 ## Conclusions
 
-The data does not support the idea that state legislative district containing one or more prisons differ substantially from districts without prisons. Analysis was performed on the following demographic indicators, and all effects lacked statistical significance:
+The data does not support the idea that state legislative district containing one or more prisons differ substantially from districts without prisons. Analysis was performed on the following following populations of interest, and all effects lacked statistical significance:
 * Racial makeup (percent of the population that is white)
 * Gender makeup (percent of the population that is male)
 * Partisan lean (percent of the population that is Democratic)
@@ -72,7 +72,7 @@ The data does not support the idea that state legislative district containing on
 
 Additionally, we found that the presence of a prison does not have a statistically significant effect on a district's voting strength. The effect was examined both before and after reallocating the prison population, and was not statistically significant in either case. This makes sense, given the relatively small percentage of prison inmates compared to the total population of eligible voters (the largest ratio for a state house district is 0.0698; for a state senate district it is 0.0305). For districts with smaller populations, such as county-level political offices, the effect of prisons on voting strength is more pronounced. 
 
-Finally, we found that after reallocating the prison population, 2 of the resulting state house districts exceeded the generally accepted 10% threshold for population deviation. This indicates that simply changing the way the census records inmates' addresses is not enough to remediate the issue; at least for state house districts, our analysis suggests that district boundaries would need to be redrawn to fulfill the substantially equal population requirement. 
+Finally, we found that after reallocating the prison population, 2 of the resulting state house districts slightly exceeded the generally accepted 10% threshold for population deviation. This indicates that simply changing the way the census records inmates' addresses is not enough to remediate the issue of prison gerrymandering; at least for state house districts, our analysis suggests that district boundaries might need to be redrawn to fulfill the substantially equal population requirement. 
 
 Furthermore, we analyzed the relationship between population deviation (after reallocating prison inmates) and the following populations of interest:
 * Racial makeup (percent of the population that is white)
@@ -83,10 +83,12 @@ Furthermore, we analyzed the relationship between population deviation (after re
 
 There were a few statistically significant results:
 * For state senate districts,
-  * There is a statistically significant relationship between population deviation and the percent of the voting age population that is under 30. For each additional percentage of population deviation, the percentage of the population that is under 30 increases by an average of 0.136%.
-  * There is a statistically significant relationship between population deviation and the percent of the voting age population that is white. For each additional percent of population deviation, the percent of the population that is white increases by an average of 2.7%.
-  * There is a statistically significant relationship between population deviation and voter turnout. For each additional percent of population deviation, the voter turnout percentage decreases by an average of 1%.
+  * For each additional percent of population deviation, the percentage of the population that is under 30 increases by an average of 0.136%.
+  * For each additional percent of population deviation, the percent of the population that is white increases by an average of 2.7%.
+  * For each additional percent of population deviation, the voter turnout percentage decreases by an average of 1%.
 
 * For state house districts,
-  * There is a statistically significant relationship between population deviation and the percent of the voting age population that is over 65. For each additional percent of population deviation, the percent of the population that is 65 or older decreases by about 0.3579%.
-  * There is a statistically significant relationship between population deviation and the gender makeup of the district. For each additional percent of population deviation, the percentage of the population that is male increases by 0.3198, on average. 
+  * For each additional percent of population deviation, the percent of the population that is 65 or older decreases by about 0.36%.
+  * For each additional percent of population deviation, the percentage of the population that is male increases by 0.32, on average.
+
+Overall, state senate districts with a population that is higher than the ideal tend to be younger, more white, and less politically active. State house districts with populations that are higher than the ideal tend to be younger and more male. This shows that the effects of prison gerrymandering are stronger for certain populations of interest. 
