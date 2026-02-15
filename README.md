@@ -63,7 +63,7 @@ For district population data, we used 2023 population projections based on the 2
 
 ## Conclusions
 
-The data does not support the idea that state legislative district containing one or more prisons differ substantially from districts without prisons. Analysis was performed on the following following populations of interest, and all effects lacked statistical significance:
+The data does not support the idea that state legislative districts containing one or more prisons differ substantially from districts without prisons. Analysis was performed on the following following populations of interest, and all effects lacked statistical significance:
 * Racial makeup (percent of the population that is white)
 * Gender makeup (percent of the population that is male)
 * Partisan lean (percent of the population that is Democratic)
