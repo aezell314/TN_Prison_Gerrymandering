@@ -4,7 +4,7 @@
 
 This project evaluates Tennessee’s legislative districts for effects of prison gerrymandering.
 
-**Prison gerrymandering** (or **prison malapportionment**) refers to the phenomenon where the federal census records the home address of prison inmates as the prison where they are incarcerated, rather than their pre-incarceration address. Census population data is used to inform state legislative district boundaries; state law dictates that districts have roughly equal populations. This can result in an inflation of voting power in areas near large prisons (since prison inmates are disenfranchised in Tennessee) and a dilution of voting power in areas where prison inmates call home.
+**Prison gerrymandering** (or **prison malapportionment**) refers to the phenomenon where the federal census records the home address of prison inmates as the prison where they are incarcerated, rather than their pre-incarceration address. Census population data is used to inform state legislative district boundaries; state law dictates that districts have roughly equal populations. This can result in an inflation of voting power in areas near large prisons (since prison inmates are disenfranchised in Tennessee) and a dilution of voting power in areas where prison inmates call home. A fantastic summary of prison gerrymandering can be found [here](https://redistrictingdatahub.org/resources/prison-gerrymandering/). 
 
 To evaluate the effects of prison malapportionment in Tennessee, this project uses prison data from [TN.gov](tn.gov), as well as population data from [Redistricting Data Hub](redistrictingdatahub.org). 
 
@@ -40,7 +40,7 @@ The accompanying [R Shiny app](https://abigail-ezell.shinyapps.io/TN_Prison_Gerr
 
 The shapefiles containing state legislative district boundaries came from [Redistricting Data Hub](redistrictingdatahub.org) (state house districts [here](https://redistrictingdatahub.org/dataset/2022-tennessee-house-of-representatives-districts-approved-plan/) and state senate districts [here](https://redistrictingdatahub.org/dataset/2022-tennessee-senate-districts-approved-plan/). 
 Population numbers for TN state legislative districts are drawn from 2023 CVAP (Citizen Voting  Age Population) datasets from [Redistricting Data Hub](redistrictingdatahub.org) (state house [here](https://redistrictingdatahub.org/dataset/tennessee-2023-state-legislative-district-lower-cvap-data-2023/) and state senate [here](https://redistrictingdatahub.org/dataset/tennessee-2023-state-legislative-district-upper-cvap-data-2023/). 
-Partisan breakdown of TN state legislative districts comes from voter registration data gathered during the 2024 election (dataset here). 
+Partisan breakdown of TN state legislative districts comes from voter registration data gathered during the 2024 election (dataset [here](https://redistrictingdatahub.org/dataset/2024-tennessee-l2-voter-file-general-election-turnout-statistics-aggregated-to-2020-census-blocks/)). 
 When necessary, precinct-level data is aggregated to state legislative district using precinct mapping information from [Dave's Redistricting](davesredistricting.org). 
 
 Partisan data was drawn from [Dave's Redistricting](davesredistricting.org). Percentages of Democratic and Republican voters is a composite of the following races:
@@ -63,7 +63,7 @@ For district population data, we used 2023 population projections based on the 2
 
 ## Conclusions
 
-The data does not support the idea that state legislative district containing one or more prisons differ substantially from districts without prisons. Analysis was performed on the following following populations of interest, and all effects lacked statistical significance:
+The data does not support the idea that state legislative districts containing one or more prisons differ substantially from districts without prisons. Analysis was performed on the following following populations of interest, and all effects lacked statistical significance:
 * Racial makeup (percent of the population that is white)
 * Gender makeup (percent of the population that is male)
 * Partisan lean (percent of the population that is Democratic)
