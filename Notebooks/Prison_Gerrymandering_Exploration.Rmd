@@ -8,6 +8,7 @@ library(tidygeocoder)
 library(tidyverse)
 library(sf)
 library(leaflet)
+library(rsconnect)
 ```
 # Data gathering:
 
@@ -159,10 +160,6 @@ Reading in TN state house and senate district boundaries:
 TN_house_bounds <- st_read('../Data/tn_sldl_adopted_2022/house_districts.shp')
 TN_senate_bounds <- st_read('../Data/tn_sldu_adopted_2022/finalsenatedistricts1-17-22.shp')
 ```
-```{r}
-TN_senate_bounds |>
-  st_drop_geometry()
-```
 
 ```{r}
 # Adding spatial geometry to prison_info tibble
@@ -189,6 +186,27 @@ prisons_sldu <-
 ```
 
 
+```{r}
+prisons_sldl <- prisons_sldl |>
+  # add an indicator column for whether or not the district contains a prison
+  mutate(has_prison = !is.na(name))
+
+prisons_sldu <- prisons_sldu |>
+  # add an indicator column for whether or not the district contains a prison
+  mutate(has_prison = !is.na(name))
+
+#merge indicator column into district boundary dataframes
+TN_house_bounds <- full_join(
+  TN_house_bounds,
+  (prisons_sldl |> st_drop_geometry() |> group_by(DISTRICT) |> summarize(has_prison = max(has_prison))),
+  by = 'DISTRICT')
+
+TN_senate_bounds <- full_join(
+  TN_senate_bounds,
+  (prisons_sldu |> st_drop_geometry() |> group_by(DISTRICT) |> summarize(has_prison = max(has_prison))),
+  by = 'DISTRICT')
+```
+
 
 Adding prison populations and total populations to the SLDL and SLDU district demographic tibbles:
 ```{r}
@@ -197,7 +215,8 @@ sldu_demogr <- sldu_demogr |>
                   prisons_sldu |> 
                     st_drop_geometry() |> 
                     group_by(DISTRICT) |> 
-                    summarize(prison_pop = sum(capacity, na.rm=TRUE)) |>
+                    summarize(prison_pop = sum(capacity, na.rm=TRUE),
+                              num_prisons = n()) |>
                     rename(SLDU=DISTRICT)
                   ), 
                   by = 'SLDU') |>
@@ -208,12 +227,14 @@ sldl_demogr <- sldl_demogr |>
                   prisons_sldl |> 
                     st_drop_geometry() |> 
                     group_by(DISTRICT) |> 
-                    summarize(prison_pop = sum(capacity, na.rm=TRUE)) |>
+                    summarize(prison_pop = sum(capacity, na.rm=TRUE),
+                              num_prisons = n()) |>
                     rename(SLDL=DISTRICT)
                   ), 
                   by = 'SLDL') |>
                 full_join(sldl_pop, by = 'SLDL')
 ```
+
 
 Adding columns for percent incarcerated and the presence of 1 or more prisons; combining age groups into fewer groups:
 ```{r}
@@ -242,6 +263,8 @@ Now we will redistribute the prison population among districts, weighting by non
 
 After redistributing the prison population, we will be able to calculate a "vote strength" metric. 
 
+
+
 ### State house:
 
 ```{r}
@@ -256,13 +279,38 @@ sldl_demogr <- sldl_demogr |>
          pop_adj = total_pop - prison_pop + (pop_weight * tot_prison_pop),
          prison_pop_adj = tot_prison_pop*pop_weight,
          cvap_adj = cvap_total - prison_pop + (pop_weight * tot_prison_pop),
-         # Create a new column for vote strength, which is voting population minus prison population divided by adjusted population
-         vote_strength = (cvap_total - prison_pop)/cvap_adj) |>
-  relocate(pop_adj, cvap_adj, .after = SLDL) |>
+         # Create new columns for vote strength, which is total population divided by eligible voters (non-incarcerated) 
+         vote_strength_adj = cvap_adj/(cvap_total - prison_pop),
+         vote_strength = cvap_total/(cvap_total - prison_pop),
+         # Create new column for percent of population that is incarcerated (after adjustment)
+         pct_incarc_adj = prison_pop_adj/total_pop*100) |>
+  relocate(pop_adj, cvap_adj, pct_incarc_adj, .after = SLDL) |>
   # drop weights since they are not needed
   dplyr::select(-pop_weight)
 ```
 
+Creating tables showing greatest prison population percent for slideshow:
+```{r}
+sldl_prison_pct <- sldl_demogr |>
+  select(SLDL, total_pop, prison_pop, vote_strength) |>
+  mutate(pct = prison_pop/total_pop*100) |>
+  mutate(across(where(is.numeric), round, digits = 2)) |>
+  mutate(total_pop=prettyNum(total_pop, big.mark = ","),
+         prison_pop=prettyNum(prison_pop, big.mark = ","),
+         pct = paste0(pct,'%')) |>
+  slice_max(pct, n=5) |>
+  rename(District=SLDL, 'Total population'=total_pop, 'Incarcerated population'=prison_pop, 'Prison population as percent of total population'=pct, 'Vote strength'=vote_strength)
+
+sldu_prison_pct <- sldu_demogr |>
+  select(SLDU, total_pop, prison_pop, vote_strength) |>
+  mutate(pct = prison_pop/total_pop*100) |>
+  mutate(across(where(is.numeric), round, digits = 2)) |>
+  mutate(total_pop=prettyNum(total_pop, big.mark = ","),
+         prison_pop=prettyNum(prison_pop, big.mark = ","),
+         pct = paste0(pct,'%')) |>
+  slice_max(pct, n=5) |>
+  rename(District=SLDU, 'Total population'=total_pop, 'Incarcerated population'=prison_pop, 'Prison population as percent of total population'=pct, 'Vote strength'=vote_strength)
+```
 
 
 Would any of TN's legislative districts be legally too small or too big if inmates were redistributed?
@@ -282,6 +330,25 @@ sldl_demogr
 ```
 After redistributing the inmate population among state house districts, two of the districts exceed a 10% deviation from the 'ideal' population. District 68's population is 10.1% larger than the target population, and district 80's population is 10.67% smaller than the target population. 
 
+```{r}
+sldl_pop_dev <- sldl_demogr |>
+  select(SLDL, pct_pop_dev, pct_pop_dev_adj) |>
+  arrange(desc(abs(pct_pop_dev_adj))) |>
+  mutate(across(where(is.numeric), round, digits = 2),
+         across(pct_pop_dev:pct_pop_dev_adj, paste0, '%')) |>
+  rename(District=SLDL, 'Population Deviation'=pct_pop_dev, 'Population Deviation (Adjusted)'=pct_pop_dev_adj) |>
+  head(5)
+
+sldu_pop_dev <- sldu_demogr |>
+  select(SLDU, pct_pop_dev, pct_pop_dev_adj) |>
+  arrange(desc(abs(pct_pop_dev_adj))) |>
+  mutate(across(where(is.numeric), round, digits = 2),
+         across(pct_pop_dev:pct_pop_dev_adj, paste0, '%')) |>
+  rename(District=SLDU, 'Population Deviation'=pct_pop_dev, 'Population Deviation (Adjusted)'=pct_pop_dev_adj) |>
+  head(5)
+```
+
+
 ### State senate:
 
 ```{r}
@@ -296,9 +363,12 @@ sldu_demogr <- sldu_demogr |>
          pop_adj = total_pop - prison_pop + (pop_weight * tot_prison_pop),
          prison_pop_adj = tot_prison_pop*pop_weight,
          cvap_adj = cvap_total - prison_pop + (pop_weight * tot_prison_pop),
-         # Create a new column for vote strength, which is voting population minus prison population divided by adjusted population
-         vote_strength = (cvap_total - prison_pop)/cvap_adj) |>
-  relocate(pop_adj, cvap_adj, .after = SLDU) |>
+         # Create new columns for vote strength, which is total voting age population divided by eligible voters (non-incarcerated) 
+         vote_strength_adj = cvap_adj/(cvap_total - prison_pop),
+         vote_strength = cvap_total/(cvap_total - prison_pop),
+         # Create new column for percent of population that is incarcerated (after adjustment)
+         pct_incarc_adj = prison_pop_adj/total_pop*100) |>
+  relocate(pop_adj, cvap_adj, pct_incarc_adj, .after = SLDU) |>
   # drop weights since they are not needed
   dplyr::select(-pop_weight)
 ```
@@ -318,6 +388,10 @@ sldu_demogr
 ```
 After redistributing the inmate population among state senate districts, none of the districts exceed a 10% deviation from the 'ideal' population. 
 
+```{r}
+sldu_demogr
+```
+
 
 # Statistical analysis:
 
@@ -327,14 +401,14 @@ Summary: The presence of a prison does not have a statistically significant effe
 #### For state house districts: 
 ```{r}
 # creating a linear regression model with x = presence of 1 or more prisons, and y = vote strength
-lm_prisons_present = lm(vote_strength ~ prisons_present, data = sldl_demogr)
+lm_prisons_present = lm(vote_strength ~ num_prisons, data = sldl_demogr)
 summary(lm_prisons_present)
 ```
 
 #### For state senate districts:
 ```{r}
 # creating a linear regression model with x = presence of 1 or more prisons, and y = vote strength
-sldu_prisons_present = lm(vote_strength ~ prisons_present, data = sldu_demogr)
+sldu_prisons_present = lm(vote_strength ~ num_prisons, data = sldu_demogr)
 summary(sldu_prisons_present)
 ```
 
@@ -583,21 +657,11 @@ For state senate districts, there is a statistically significant relationship be
 
 
 # Preliminary visualizations:
-```{r}
-# Reading in county boundaries
-TN_county_bounds <- st_read('../Data/TN_counties/TN_counties.shp') |> st_transform(crs = st_crs(TN_house_bounds))
-```
+
 
 ```{r}
 leaflet() |>
 addTiles() |> 
-addPolygons(
-  data = TN_county_bounds,
-  color = "blue",
-  weight = 1,
-  group = "Counties",
-  label = ~NAME
-) |>
 addPolygons(
     data = TN_house_bounds,
     color = "#444444",
@@ -651,15 +715,29 @@ addPolygons(
 
 Save data for use in an R Shiny app:
 ```{r}
-saveRDS(prisons_sldu, file = "../Data/prisons_sldu.rds")
-saveRDS(prisons_sldl, file = "../Data/prisons_sldl.rds")
-saveRDS(sldu_demogr, file = "../Data/sldu_demogr.rds")
-saveRDS(sldl_demogr, file = "../Data/sldl_demogr.rds")
-saveRDS(TN_house_bounds, file = "../Data/TN_house_bounds.rds")
-saveRDS(TN_senate_bounds, file = "../Data/TN_senate_bounds.rds")
-saveRDS(prison_info, file = "../Data/prison_info.rds")
+saveRDS(prisons_sldu, file = "../TN_Prison_ShinyApp/Data/prisons_sldu.rds")
+saveRDS(prisons_sldl, file = "../TN_Prison_ShinyApp/Data/prisons_sldl.rds")
+saveRDS(sldu_demogr, file = "../TN_Prison_ShinyApp/Data/sldu_demogr.rds")
+saveRDS(sldl_demogr, file = "../TN_Prison_ShinyApp/Data/sldl_demogr.rds")
+saveRDS(TN_house_bounds, file = "../TN_Prison_ShinyApp/Data/TN_house_bounds.rds")
+saveRDS(TN_senate_bounds, file = "../TN_Prison_ShinyApp/Data/TN_senate_bounds.rds")
+saveRDS(prison_info, file = "../TN_Prison_ShinyApp/Data/prison_info.rds")
+readr::write_csv(sldl_prison_pct, "../TN_Prison_ShinyApp/Data/sldl_prison_pct.csv")
+readr::write_csv(sldu_prison_pct, "../TN_Prison_ShinyApp/Data/sldu_prison_pct.csv")
+readr::write_csv(sldl_pop_dev, "../TN_Prison_ShinyApp/Data/sldl_pop_dev.csv")
+readr::write_csv(sldu_pop_dev, "../TN_Prison_ShinyApp/Data/sldu_pop_dev.csv")
 ```
 
 
 
+```{r}
+current_pop <- sldl_demogr |>
+      filter(SLDL==16) 
+```
+
+
+```{r}
+TN_house_bounds |>
+  st_drop_geometry()
+```
 

@@ -9,7 +9,7 @@ navbarPage("TN Prison Gerrymandering", id="nav",
                         
                         absolutePanel(id = "controls", class = "panel panel-default", fixed = TRUE,
                                       draggable = TRUE, top = 80, left = "auto", right = 30, bottom = "auto",
-                                      width = 330, height = "auto",
+                                      width = 360, height = "auto",
                                       wellPanel(
                                       
                                         h2("District explorer"),
@@ -24,10 +24,10 @@ navbarPage("TN Prison Gerrymandering", id="nav",
                                         
                                         textOutput("district_display"),
                                         
-                                        dataTableOutput("popTable"),
+                                        tableOutput("popTable"),
                                         
-                                        plotOutput("partisanBarPlot", height = 200),
-                                        plotOutput("raceBarPlot", height = 200)
+                                        plotOutput("partisanBarPlot", height = 180),
+                                        plotOutput("raceBarPlot", height = 180)
                                         
                                         
                                         )
