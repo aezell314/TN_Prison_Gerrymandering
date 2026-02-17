@@ -730,14 +730,5 @@ readr::write_csv(sldu_pop_dev, "../TN_Prison_ShinyApp/Data/sldu_pop_dev.csv")
 
 
 
-```{r}
-current_pop <- sldl_demogr |>
-      filter(SLDL==16) 
-```
 
-
-```{r}
-TN_house_bounds |>
-  st_drop_geometry()
-```
 

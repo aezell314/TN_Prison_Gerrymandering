@@ -155,7 +155,7 @@ function(input, output, session) {
       select('Adjusted')
     
     combined_pop <- cbind(current_pop, adj_pop) |> 
-      mutate(Change = ifelse(Population < Adjusted, "↑", "↓")) |>
+      mutate(Change = ifelse(Current < Adjusted, "↑", "↓")) |>
       mutate(across(where(is.numeric), round, digits = 2)) |>
       mutate(Current = prettyNum(Current, big.mark = ","),
              Adjusted = prettyNum(Adjusted, big.mark = ","))
