@@ -9,6 +9,7 @@ library(tidyverse)
 library(sf)
 library(leaflet)
 library(rsconnect)
+library(kableExtra)
 ```
 # Data gathering:
 
@@ -289,28 +290,6 @@ sldl_demogr <- sldl_demogr |>
   dplyr::select(-pop_weight)
 ```
 
-Creating tables showing greatest prison population percent for slideshow:
-```{r}
-sldl_prison_pct <- sldl_demogr |>
-  select(SLDL, total_pop, prison_pop, vote_strength) |>
-  mutate(pct = prison_pop/total_pop*100) |>
-  mutate(across(where(is.numeric), round, digits = 2)) |>
-  mutate(total_pop=prettyNum(total_pop, big.mark = ","),
-         prison_pop=prettyNum(prison_pop, big.mark = ","),
-         pct = paste0(pct,'%')) |>
-  slice_max(pct, n=5) |>
-  rename(District=SLDL, 'Total population'=total_pop, 'Incarcerated population'=prison_pop, 'Prison population as percent of total population'=pct, 'Vote strength'=vote_strength)
-
-sldu_prison_pct <- sldu_demogr |>
-  select(SLDU, total_pop, prison_pop, vote_strength) |>
-  mutate(pct = prison_pop/total_pop*100) |>
-  mutate(across(where(is.numeric), round, digits = 2)) |>
-  mutate(total_pop=prettyNum(total_pop, big.mark = ","),
-         prison_pop=prettyNum(prison_pop, big.mark = ","),
-         pct = paste0(pct,'%')) |>
-  slice_max(pct, n=5) |>
-  rename(District=SLDU, 'Total population'=total_pop, 'Incarcerated population'=prison_pop, 'Prison population as percent of total population'=pct, 'Vote strength'=vote_strength)
-```
 
 
 Would any of TN's legislative districts be legally too small or too big if inmates were redistributed?
@@ -329,24 +308,6 @@ sldl_demogr <- sldl_demogr |>
 sldl_demogr
 ```
 After redistributing the inmate population among state house districts, two of the districts exceed a 10% deviation from the 'ideal' population. District 68's population is 10.1% larger than the target population, and district 80's population is 10.67% smaller than the target population. 
-
-```{r}
-sldl_pop_dev <- sldl_demogr |>
-  select(SLDL, pct_pop_dev, pct_pop_dev_adj) |>
-  arrange(desc(abs(pct_pop_dev_adj))) |>
-  mutate(across(where(is.numeric), round, digits = 2),
-         across(pct_pop_dev:pct_pop_dev_adj, paste0, '%')) |>
-  rename(District=SLDL, 'Population Deviation'=pct_pop_dev, 'Population Deviation (Adjusted)'=pct_pop_dev_adj) |>
-  head(5)
-
-sldu_pop_dev <- sldu_demogr |>
-  select(SLDU, pct_pop_dev, pct_pop_dev_adj) |>
-  arrange(desc(abs(pct_pop_dev_adj))) |>
-  mutate(across(where(is.numeric), round, digits = 2),
-         across(pct_pop_dev:pct_pop_dev_adj, paste0, '%')) |>
-  rename(District=SLDU, 'Population Deviation'=pct_pop_dev, 'Population Deviation (Adjusted)'=pct_pop_dev_adj) |>
-  head(5)
-```
 
 
 ### State senate:
@@ -388,8 +349,27 @@ sldu_demogr
 ```
 After redistributing the inmate population among state senate districts, none of the districts exceed a 10% deviation from the 'ideal' population. 
 
+Creating tables showing greatest prison population percent for slideshow:
 ```{r}
-sldu_demogr
+sldl_prison_pct <- sldl_demogr |>
+  select(SLDL, total_pop, prison_pop, vote_strength) |>
+  mutate(pct = prison_pop/total_pop*100) |>
+  mutate(across(where(is.numeric), round, digits = 2)) |>
+  mutate(total_pop=prettyNum(total_pop, big.mark = ","),
+         prison_pop=prettyNum(prison_pop, big.mark = ","),
+         pct = paste0(pct,'%')) |>
+  slice_max(pct, n=5) |>
+  rename(District=SLDL, 'Total population'=total_pop, 'Incarcerated population'=prison_pop, 'Prison population as percent of total population'=pct, 'Vote strength'=vote_strength)
+
+sldu_prison_pct <- sldu_demogr |>
+  select(SLDU, total_pop, prison_pop, vote_strength) |>
+  mutate(pct = prison_pop/total_pop*100) |>
+  mutate(across(where(is.numeric), round, digits = 2)) |>
+  mutate(total_pop=prettyNum(total_pop, big.mark = ","),
+         prison_pop=prettyNum(prison_pop, big.mark = ","),
+         pct = paste0(pct,'%')) |>
+  slice_max(pct, n=5) |>
+  rename(District=SLDU, 'Total population'=total_pop, 'Incarcerated population'=prison_pop, 'Prison population as percent of total population'=pct, 'Vote strength'=vote_strength)
 ```
 
 
@@ -689,19 +669,36 @@ addPolygons(
 ```
 
 
+
 ```{r}
-leaflet() |>
+# Merge demographic data into district boundary data
+district_bounds_statewide <- full_join(TN_house_bounds, sldl_demogr |> rename(DISTRICT=SLDL), by='DISTRICT')
+```
+
+
+```{r}
+pal <- colorNumeric(
+  palette = "plasma", 
+  domain = district_bounds_statewide$pct_party_democratic)
+
+leaflet(data = district_bounds_statewide) |>
 addTiles() |> 
 addPolygons(
-    data = TN_senate_bounds,
     color = "#444444",
     weight = 1,
     fillOpacity = 0.5,
-    fillColor = "#fec44f",
+    fillColor = ~pal(pct_party_democratic), 
     highlightOptions = highlightOptions(
       color = "red", weight = 3, bringToFront = TRUE
     ),
     label = ~LONGNAME
+  ) |>
+  addLegend(
+    position = "bottomleft",
+    pal = pal,
+    values = ~pct_party_democratic,
+    title = "Percent Democratic",
+    labFormat = labelFormat()
   ) |>
   addMarkers(
     data = prisons_sldu,
@@ -709,7 +706,8 @@ addPolygons(
     lat = ~latitude,
     popup = ~as.character(name), 
     label = ~as.character(name)
-  )
+  ) 
+
 ```
 
 
@@ -724,9 +722,8 @@ saveRDS(TN_senate_bounds, file = "../TN_Prison_ShinyApp/Data/TN_senate_bounds.rd
 saveRDS(prison_info, file = "../TN_Prison_ShinyApp/Data/prison_info.rds")
 readr::write_csv(sldl_prison_pct, "../TN_Prison_ShinyApp/Data/sldl_prison_pct.csv")
 readr::write_csv(sldu_prison_pct, "../TN_Prison_ShinyApp/Data/sldu_prison_pct.csv")
-readr::write_csv(sldl_pop_dev, "../TN_Prison_ShinyApp/Data/sldl_pop_dev.csv")
-readr::write_csv(sldu_pop_dev, "../TN_Prison_ShinyApp/Data/sldu_pop_dev.csv")
 ```
+
 
 
 

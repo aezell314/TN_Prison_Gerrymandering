@@ -8,6 +8,7 @@ library(sf)
 library(htmltools)
 library(scales)
 library(leaflet)
+library(kableExtra)
 
 # Reading in data
 prisons_sldu <- readRDS('./Data/prisons_sldu.rds') 
