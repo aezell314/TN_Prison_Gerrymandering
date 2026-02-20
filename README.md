@@ -8,6 +8,13 @@ This project evaluates Tennessee’s legislative districts for effects of prison
 
 To evaluate the effects of prison malapportionment in Tennessee, this project uses prison data from [TN.gov](tn.gov), as well as population data from [Redistricting Data Hub](redistrictingdatahub.org). 
 
+## Repository Structure
+
+* The Data folder contains the raw data used for this project.
+* The Notebooks folder contains an R notebook with data wrangling, exploratory statistical analysis, and a couple preliminary visualizations.
+* The Slides folder contains a pdf version of a presentation of this project.
+* The TN_Prison_ShinyApp folder is a self-contained folder containing the components of an R Shiny App that can be used to visualize the data for this project. See the R Shiny App section of this README for more detail.
+
 ## Motivation
 
 Prison gerrymandering leads to inequities in the democratic process, and it can be argued that it leads to a violation of the "one person, one vote" idea put forth in the Equal Protection Clause of the Fourteenth Amendment.
