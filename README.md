@@ -47,7 +47,6 @@ The accompanying [R Shiny app](https://abigail-ezell.shinyapps.io/TN_Prison_Gerr
 
 The shapefiles containing state legislative district boundaries came from [Redistricting Data Hub](redistrictingdatahub.org) (state house districts [here](https://redistrictingdatahub.org/dataset/2022-tennessee-house-of-representatives-districts-approved-plan/) and state senate districts [here](https://redistrictingdatahub.org/dataset/2022-tennessee-senate-districts-approved-plan/). 
 Population numbers for TN state legislative districts are drawn from 2023 CVAP (Citizen Voting  Age Population) datasets from [Redistricting Data Hub](redistrictingdatahub.org) (state house [here](https://redistrictingdatahub.org/dataset/tennessee-2023-state-legislative-district-lower-cvap-data-2023/) and state senate [here](https://redistrictingdatahub.org/dataset/tennessee-2023-state-legislative-district-upper-cvap-data-2023/). 
-Partisan breakdown of TN state legislative districts comes from voter registration data gathered during the 2024 election (dataset [here](https://redistrictingdatahub.org/dataset/2024-tennessee-l2-voter-file-general-election-turnout-statistics-aggregated-to-2020-census-blocks/)). 
 When necessary, precinct-level data is aggregated to state legislative district using precinct mapping information from [Dave's Redistricting](davesredistricting.org). 
 
 Partisan data was drawn from [Dave's Redistricting](davesredistricting.org). Percentages of Democratic and Republican voters is a composite of the following races:
